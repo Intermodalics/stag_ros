@@ -188,7 +188,7 @@ static int *SortAnchorsByGradValue(short *gradImg, EdgeMap *map,
     }                            // end-for
   }                              // end-for
 
-  delete C;
+  delete[] C;
 
   *pNoAnchors = noAnchors;
   return A;
@@ -837,10 +837,10 @@ static int RetrieveChainNos(Chain *chains, int root, int chainNos[]) {
 
 //   map->noSegments = noSegments;
 
-//   delete chains;
-//   delete stack;
-//   delete pixels;
-//   delete chainNos;
+//   delete[] chains;
+//   delete[] stack;
+//   delete[] pixels;
+//   delete[] chainNos;
 // }  // end-JoinAnchorPoints
 
 ///-----------------------------------------------------------------------------------
@@ -1449,11 +1449,11 @@ void JoinAnchorPointsUsingSortedAnchors(short *gradImg, unsigned char *dirImg,
 
   map->noSegments = noSegments;
 
-  delete A;
-  delete chains;
-  delete stack;
-  delete pixels;
-  delete chainNos;
+  delete[] A;
+  delete[] chains;
+  delete[] stack;
+  delete[] pixels;
+  delete[] chainNos;
 }  // end-JoinAnchorPointsUsingSortedAnchors
 
 ///-----------------------------------------------------------------------------------
@@ -2594,11 +2594,11 @@ void JoinAnchorPointsUsingSortedAnchors(short *gradImg, unsigned char *dirImg,
 
 //   map->noSegments = noSegments;
 
-//   delete A;
-//   delete chains;
-//   delete stack;
-//   delete pixels;
-//   delete chainNos;
+//   delete[] A;
+//   delete[] chains;
+//   delete[] stack;
+//   delete[] pixels;
+//   delete[] chainNos;
 // }  // end-JoinAnchorPointsUsingSortedAnchors4Dirs
 
 ///----------------------------------------------------------------------------------------------
@@ -3375,8 +3375,8 @@ EdgeMap *DoDetectEdgesByED(short *gradImg, unsigned char *dirImg, int width,
 
 //   map->noSegments = noSegments;
 
-//   delete tmpPixels;
-//   delete A;
+//   delete[] tmpPixels;
+//   delete[] A;
 // }  // end-JoinAnchorPointsUsingSortedAnchors
 
 // ///----------------------------------------------------------------------------------------------
