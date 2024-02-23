@@ -51,10 +51,10 @@ StagNode::StagNode() : Node("stag_node") {
       [this](const sensor_msgs::msg::Image::ConstSharedPtr &msg) {
         this->imageCallback(msg);
       },
-      is_compressed ? "compressed" : "raw", rmw_qos_profile_default);
+      is_compressed ? "compressed" : "raw", rclcpp::SensorDataQoS().get_rmw_qos_profile());
 
   cameraInfoSub = this->create_subscription<sensor_msgs::msg::CameraInfo>(
-      camera_info_topic, 10,
+      camera_info_topic, rclcpp::SensorDataQoS(),
       [this](sensor_msgs::msg::CameraInfo::SharedPtr msg) {
         this->cameraInfoCallback(msg);
       });
@@ -310,6 +310,7 @@ void StagNode::cameraInfoCallback(const sensor_msgs::msg::CameraInfo::SharedPtr 
     projectionMat.at<double>(2, 2) = msg->p[11];
 
     got_camera_info = true;
+    cameraInfoSub.reset();
   }
 }
 }  // namespace stag_ros
