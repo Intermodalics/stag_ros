@@ -296,9 +296,14 @@ void StagNode::cameraInfoCallback(const sensor_msgs::msg::CameraInfo::SharedPtr 
     cameraMatrix.at<double>(2, 2) = msg->k[8];
 
     // Get distortion Matrix
-    distortionMat = cv::Mat::zeros(1, msg->d.size(), CV_64F);
-    for (size_t i = 0; i < msg->d.size(); i++)
-      distortionMat.at<double>(0, i) = msg->d[i];
+    if (msg->distortion_model == sensor_msgs::distortion_models::PLUMB_BOB ||
+        msg->distortion_model == sensor_msgs::distortion_models::RATIONAL_POLYNOMIAL) {
+      distortionMat = cv::Mat::zeros(1, msg->d.size(), CV_64F);
+      for (size_t i = 0; i < msg->d.size(); i++)
+        distortionMat.at<double>(0, i) = msg->d[i];
+    } else {
+      RCLCPP_WARN(get_logger(), "Distortion model is not supported: %s", msg->distortion_model.c_str());
+    }
 
     // Get rectification Matrix
     rectificationMat.at<double>(0, 0) = msg->r[0];
