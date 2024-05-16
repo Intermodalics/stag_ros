@@ -5,7 +5,9 @@
 #include <tf2/LinearMath/Vector3.h>
 #include <tf2/LinearMath/Transform.h>
 #include <geometry_msgs/msg/transform.hpp>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <sensor_msgs/distortion_models.hpp>
+#include <sensor_msgs/msg/camera_info.hpp>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 // Project includes
 #ifndef NDEBUG
@@ -16,6 +18,8 @@
 #include "stag_ros/utility.hpp"
 #include "stag_ros/load_yaml_tags.hpp"
 #include "stag_ros/common.hpp"
+
+static std::size_t counter = 0;
 
 namespace stag_ros {
 StagNode::StagNode() : Node("stag_node") {
@@ -46,15 +50,17 @@ StagNode::StagNode() : Node("stag_node") {
   }
 
   // Set Subscribers
+  const auto qos = rclcpp::SensorDataQoS();
+  // const auto qos = rclcpp::QoS(rclcpp::KeepAll()).reliable();
   imageSub = image_transport::create_subscription(
       this, image_topic,
       [this](const sensor_msgs::msg::Image::ConstSharedPtr &msg) {
         this->imageCallback(msg);
       },
-      is_compressed ? "compressed" : "raw", rclcpp::SensorDataQoS().get_rmw_qos_profile());
+      is_compressed ? "compressed" : "raw", qos.get_rmw_qos_profile());
 
   cameraInfoSub = this->create_subscription<sensor_msgs::msg::CameraInfo>(
-      camera_info_topic, rclcpp::SensorDataQoS(),
+      camera_info_topic, qos,
       [this](sensor_msgs::msg::CameraInfo::SharedPtr msg) {
         this->cameraInfoCallback(msg);
       });
@@ -77,7 +83,10 @@ StagNode::StagNode() : Node("stag_node") {
   projectionMat = cv::Mat::zeros(3, 4, CV_64F);
 }
 
-StagNode::~StagNode() { delete stag; }
+StagNode::~StagNode() {
+  delete stag;
+  RCLCPP_WARN_STREAM(this->get_logger(), "Total number of images processed: " << counter);
+}
 
 void StagNode::loadParameters() {
   this->get_parameter("libraryHD", this->stag_library);
@@ -222,10 +231,9 @@ void StagNode::imageCallback(
         bundle_ids.push_back(-1);
       }
 
-      if (bundle_ids.size() > 0)
-        Common::publishTransform(bundle_transforms, tf_broadcaster, bundlePub,
-                                 msg->header, tag_tf_prefix, bundle_frame_ids,
-                                 bundle_ids, publish_tf);
+      Common::publishTransform(bundle_transforms, tf_broadcaster, bundlePub,
+                               msg->header, tag_tf_prefix, bundle_frame_ids,
+                               bundle_ids, publish_tf);
 
       // Markers
       std::vector<geometry_msgs::msg::Transform> marker_transforms;
@@ -255,15 +263,23 @@ void StagNode::imageCallback(
         marker_ids.push_back(tags[ti].id);
       }
 
-      if (marker_ids.size() > 0)
-        Common::publishTransform(marker_transforms, tf_broadcaster, markersPub,
-                                 msg->header, tag_tf_prefix, marker_frame_ids,
-                                 marker_ids, publish_tf);
+      Common::publishTransform(marker_transforms, tf_broadcaster, markersPub,
+                               msg->header, tag_tf_prefix, marker_frame_ids,
+                               marker_ids, publish_tf);
 
     } else {
       RCLCPP_WARN(this->get_logger(), "No markers detected");
+      Common::publishTransform({}, tf_broadcaster, bundlePub,
+                               msg->header, tag_tf_prefix, {},
+                               {}, publish_tf);
+      Common::publishTransform({}, tf_broadcaster, markersPub,
+                               msg->header, tag_tf_prefix, {},
+                               {}, publish_tf);
     }
+  } else {
+    RCLCPP_WARN(this->get_logger(), "No camera_info received yet");
   }
+  ++counter;
 }
 
 void StagNode::cameraInfoCallback(const sensor_msgs::msg::CameraInfo::SharedPtr &msg) {
@@ -280,9 +296,14 @@ void StagNode::cameraInfoCallback(const sensor_msgs::msg::CameraInfo::SharedPtr 
     cameraMatrix.at<double>(2, 2) = msg->k[8];
 
     // Get distortion Matrix
-    distortionMat = cv::Mat::zeros(1, msg->d.size(), CV_64F);
-    for (size_t i = 0; i < msg->d.size(); i++)
-      distortionMat.at<double>(0, i) = msg->d[i];
+    if (msg->distortion_model == sensor_msgs::distortion_models::PLUMB_BOB ||
+        msg->distortion_model == sensor_msgs::distortion_models::RATIONAL_POLYNOMIAL) {
+      distortionMat = cv::Mat::zeros(1, msg->d.size(), CV_64F);
+      for (size_t i = 0; i < msg->d.size(); i++)
+        distortionMat.at<double>(0, i) = msg->d[i];
+    } else {
+      RCLCPP_WARN(get_logger(), "Distortion model is not supported: %s", msg->distortion_model.c_str());
+    }
 
     // Get rectification Matrix
     rectificationMat.at<double>(0, 0) = msg->r[0];

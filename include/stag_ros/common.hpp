@@ -72,6 +72,7 @@ struct Common {
                                const std::vector<int> &marker_id,
                                const bool &pub_tf) {
     stag_ros::msg::STagMarkerArray d_array;
+    d_array.header.stamp = hdr.stamp;
 
     for (size_t di = 0; di < tf.size(); ++di) {
       if (pub_tf) {
